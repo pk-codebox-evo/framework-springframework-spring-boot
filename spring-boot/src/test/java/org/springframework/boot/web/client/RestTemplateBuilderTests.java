@@ -72,6 +72,9 @@ public class RestTemplateBuilderTests {
 	@Mock
 	private HttpMessageConverter<Object> messageConverter;
 
+	@Mock
+	private ClientHttpRequestInterceptor interceptor;
+
 	@Before
 	public void setup() {
 		MockitoAnnotations.initMocks(this);
@@ -201,6 +204,62 @@ public class RestTemplateBuilderTests {
 				.defaultMessageConverters().configure(template);
 		assertThat(template.getMessageConverters())
 				.hasSameSizeAs(new RestTemplate().getMessageConverters());
+	}
+
+	@Test
+	public void interceptorsWhenInterceptorsAreNullShouldThrowException()
+			throws Exception {
+		this.thrown.expect(IllegalArgumentException.class);
+		this.thrown.expectMessage("interceptors must not be null");
+		this.builder.interceptors((ClientHttpRequestInterceptor[]) null);
+	}
+
+	@Test
+	public void interceptorsCollectionWhenInterceptorsAreNullShouldThrowException()
+			throws Exception {
+		this.thrown.expect(IllegalArgumentException.class);
+		this.thrown.expectMessage("interceptors must not be null");
+		this.builder.interceptors((Set<ClientHttpRequestInterceptor>) null);
+	}
+
+	@Test
+	public void interceptorsShouldApply() throws Exception {
+		RestTemplate template = this.builder.interceptors(this.interceptor).build();
+		assertThat(template.getInterceptors()).containsOnly(this.interceptor);
+	}
+
+	@Test
+	public void interceptorsShouldReplaceExisting() throws Exception {
+		RestTemplate template = this.builder
+				.interceptors(mock(ClientHttpRequestInterceptor.class))
+				.interceptors(Collections.singleton(this.interceptor)).build();
+		assertThat(template.getInterceptors()).containsOnly(this.interceptor);
+	}
+
+	@Test
+	public void additionalInterceptorsWhenInterceptorsAreNullShouldThrowException()
+			throws Exception {
+		this.thrown.expect(IllegalArgumentException.class);
+		this.thrown.expectMessage("interceptors must not be null");
+		this.builder.additionalInterceptors((ClientHttpRequestInterceptor[]) null);
+	}
+
+	@Test
+	public void additionalInterceptorsCollectionWhenInterceptorsAreNullShouldThrowException()
+			throws Exception {
+		this.thrown.expect(IllegalArgumentException.class);
+		this.thrown.expectMessage("interceptors must not be null");
+		this.builder.additionalInterceptors((Set<ClientHttpRequestInterceptor>) null);
+	}
+
+	@Test
+	public void additionalInterceptorsShouldAddToExisting() throws Exception {
+		ClientHttpRequestInterceptor interceptor = mock(
+				ClientHttpRequestInterceptor.class);
+		RestTemplate template = this.builder.interceptors(interceptor)
+				.additionalInterceptors(this.interceptor).build();
+		assertThat(template.getInterceptors()).containsOnly(interceptor,
+				this.interceptor);
 	}
 
 	@Test
@@ -472,6 +531,16 @@ public class RestTemplateBuilderTests {
 				.setReadTimeout(1234).build();
 		assertThat(ReflectionTestUtils.getField(requestFactory, "readTimeout"))
 				.isEqualTo(1234);
+	}
+
+	@Test
+	public void unwrappingDoesNotAffectRequestFactoryThatIsSetOnTheBuiltTemplate() {
+		SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+		RestTemplate template = this.builder
+				.requestFactory(new BufferingClientHttpRequestFactory(requestFactory))
+				.build();
+		assertThat(template.getRequestFactory())
+				.isInstanceOf(BufferingClientHttpRequestFactory.class);
 	}
 
 	public static class RestTemplateSubclass extends RestTemplate {
